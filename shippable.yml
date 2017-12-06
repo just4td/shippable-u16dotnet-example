@@ -1,0 +1,34 @@
+language: none
+
+build:
+  cache: true
+  cache_dir_list:
+    - /root/.config/NuGet
+    - /root/.nuget
+  pre_ci_boot:
+    image_name: seniorquico/u16dotnet
+    image_tag: "v5.10.4-5.4.1.6"
+    options: "-e HOME=/root"
+  ci:
+    - mono --version
+    - msbuild /version
+    - csc /version
+    - cd "${SHIPPABLE_BUILD_DIR}/MyModernProject"
+    - echo 'Restoring NuGet dependencies for modern project...'
+    - msbuild /target:restore /property:Configuration=Release /property:Platform="Any CPU" /maxcpucount /toolsversion:15.0 /verbosity:detailed MyModernProject.sln
+    - echo 'Building modern project...'
+    - msbuild /property:Configuration=Release /property:Platform="Any CPU" /maxcpucount /toolsversion:15.0 /verbosity:detailed MyModernProject.sln
+    - cd "${SHIPPABLE_BUILD_DIR}/MyModernProject/MyApplication/bin/Release/net462"
+    - echo 'Running modern project...'
+    - mono MyApplication.exe '{"Hello":"World"}'
+    - cd "${SHIPPABLE_BUILD_DIR}/MyClassicProject"
+    - echo 'Downloading NuGet...'
+    - curl -sSL https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -o nuget.exe
+    - mono nuget.exe help | head -n 1
+    - echo 'Restoring NuGet dependencies for classic project...'
+    - mono nuget.exe restore -MSBuildPath /usr/lib/mono/msbuild/15.0/bin
+    - echo 'Building classic project...'
+    - msbuild /property:Configuration=Release /property:Platform="Any CPU" /maxcpucount /toolsversion:15.0 /verbosity:detailed MyClassicProject.sln
+    - cd "${SHIPPABLE_BUILD_DIR}/MyClassicProject/MyApplication/bin/Release"
+    - echo 'Running classic project...'
+    - mono MyApplication.exe '{"Hello":"World"}'
